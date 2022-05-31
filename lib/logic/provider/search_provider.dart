@@ -4,10 +4,9 @@ import 'package:flutter_chat_app/logic/data/app_data.dart';
 
 class SearchProvider extends ChangeNotifier {
   FirebaseFirestore firestore = FirebaseFirestore.instance;
-
-  var searchList = [];
-  var friendsList = [];
   var isLoading = false;
+  var friendsList = [];
+  var searchList = [];
 
   void searchFriends(String data) async {
     if (data.isEmpty) {

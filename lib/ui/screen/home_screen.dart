@@ -9,6 +9,7 @@ import 'package:flutter_chat_app/ui/screen/chat_screen.dart';
 import 'package:flutter_chat_app/ui/screen/profile_screen.dart';
 import 'package:flutter_chat_app/ui/screen/search_screen.dart';
 import 'package:flutter_chat_app/ui/widgets/connection_chat_tile.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:provider/provider.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -49,7 +50,9 @@ class _UserListScreenState extends State<HomeScreen> {
                 ),
               );
             },
-            icon: const Icon(Icons.search_rounded),
+            icon: const Icon(
+              Icons.search_rounded,
+            ),
           ),
           PopupMenuButton(
             onSelected: (value) {
@@ -70,13 +73,6 @@ class _UserListScreenState extends State<HomeScreen> {
                 ),
                 value: 0,
               ),
-              PopupMenuItem(
-                child: Text(
-                  "Settings",
-                  style: AppText.mainTextStyle,
-                ),
-                onTap: () {},
-              ),
             ],
           ),
           const SizedBox(
@@ -90,75 +86,97 @@ class _UserListScreenState extends State<HomeScreen> {
           const SizedBox(
             height: 5,
           ),
-          Expanded(
-            child: StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
-              stream: Provider.of<ChatProvider>(context)
-                  .chatStream(AppData.authData!.email!),
-              builder: (context, snapshot1) {
-                if (snapshot1.connectionState == ConnectionState.active) {
-                  if (!snapshot1.hasData) {
-                    return const Center(
-                      child: SizedBox(),
-                    );
-                  }
-                  var chatList = (snapshot1.data!.data()
-                      as Map<String, dynamic>)["chatUser"] as List;
-                  return ListView.builder(
+          StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+            stream: Provider.of<ChatProvider>(context)
+                .connectionStream(AppData.authData!.email!),
+            builder: (context, snapshot1) {
+              if (snapshot1.connectionState == ConnectionState.active) {
+                var chatList = snapshot1.data!.docs;
+                if (chatList.isEmpty) {
+                  return Center(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        FaIcon(
+                          FontAwesomeIcons.solidMessage,
+                          color: Colors.grey[400],
+                          size: 60,
+                        ),
+                        const SizedBox(
+                          height: 20,
+                        ),
+                        Text(
+                          "Getting some friends",
+                          style: AppText.mainTextStyle.copyWith(
+                            color: Colors.grey[400],
+                            fontSize: 18,
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                }
+                return Expanded(
+                  child: ListView.builder(
+                    padding: EdgeInsets.zero,
                     itemCount: chatList.length,
                     itemBuilder: (context, i) {
-                      if (chatList.isEmpty) {
-                        return const SizedBox();
-                      }
                       return StreamBuilder<
                           DocumentSnapshot<Map<String, dynamic>>>(
                         stream: Provider.of<ChatProvider>(context)
-                            .friendStream(chatList[i]["connection"]!),
+                            .friendStream(chatList[i]["connection"]),
                         builder: (context, snapshot2) {
                           if (snapshot2.connectionState ==
-                              ConnectionState.waiting) {
-                            return Center(
-                              child: Column(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  const CircularProgressIndicator(),
-                                  const SizedBox(
-                                    height: 20,
+                              ConnectionState.active) {
+                            var data = snapshot2.data!.data();
+                            return ConnectionChatTile(
+                              image: data!["photoUrl"],
+                              userName: data["name"],
+                              unread: "${chatList[i]["total_unread"]}",
+                              onTap: () {
+                                print("ID ${chatList[i]["chat_id"]}");
+                                Provider.of<ChatProvider>(context,
+                                        listen: false)
+                                    .goToChatRoom(
+                                  chatId: chatList[i]["chat_id"],
+                                  onSuccess: (chatID) => Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (context) => ChatScreen(
+                                        chatId: chatList[i]["chat_id"],
+                                        receiverEmail: chatList[i]
+                                            ["connection"],
+                                      ),
+                                    ),
                                   ),
-                                  Text(
-                                    "Getting friends.. please wait",
-                                    style: AppText.mainTextStyle
-                                        .copyWith(color: Colors.grey),
-                                  )
-                                ],
-                              ),
+                                );
+                              },
                             );
                           }
-                          var friendData = snapshot2.data!.data();
-                          return InkWell(
-                            onTap: () {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (_) => const ChatScreen(),
-                                ),
-                              );
-                            },
-                            child: ConnectionChatTile(
-                              userName: friendData!["name"],
-                              highlightText: "Test user broooo",
-                              unread: chatList[i]["total_unread"].toString(),
-                              onTap: () {},
-                            ),
-                          );
+                          return const SizedBox();
                         },
                       );
                     },
-                  );
-                }
-                return const SizedBox();
-              },
-            ),
-          ),
+                  ),
+                );
+              }
+              return Column(
+                children: [
+                  const Center(
+                    child: CircularProgressIndicator(),
+                  ),
+                  const SizedBox(
+                    height: 20,
+                  ),
+                  Text(
+                    "Loading.. please wait",
+                    style: AppText.mainTextStyle
+                        .copyWith(color: Colors.grey[400], fontSize: 18),
+                  )
+                ],
+              );
+            },
+          )
         ],
       ),
     );

@@ -62,17 +62,20 @@ class _SignInScreenState extends State<SignInScreen> {
             InkWell(
               onTap: () {
                 _auth.loginWithGoogle(
-                  stateInfo: (authState) {
+                  state: (authState) {
                     if (authState == AuthState.authenticating) {
                       showDialog(
-                          context: context,
-                          builder: (context) => const StateDialog(
-                              text: "Authenticating.. please wait"));
+                        context: context,
+                        builder: (context) => const StateDialog(
+                          text: "Authenticating.. please wait",
+                        ),
+                      );
                     } else if (authState == AuthState.unauthenticated) {
                       Navigator.pop(context);
                       showDialog(
                         context: context,
                         builder: (context) => const StateDialog(
+                          isLoading: false,
                           text: "Regitered Successfully",
                           icon: Icon(
                             Icons.check_circle,
@@ -92,6 +95,7 @@ class _SignInScreenState extends State<SignInScreen> {
                       showDialog(
                         context: context,
                         builder: (context) => const StateDialog(
+                          isLoading: false,
                           text: "Login Successfully",
                           icon: Icon(
                             Icons.check_circle,

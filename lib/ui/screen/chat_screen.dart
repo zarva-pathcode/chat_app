@@ -1,14 +1,23 @@
+import 'dart:async';
+
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
+import 'package:flutter_chat_app/logic/data/app_data.dart';
+import 'package:flutter_chat_app/logic/data/model/users.dart';
+import 'package:flutter_chat_app/logic/provider/chat_provider.dart';
 
 import 'package:flutter_chat_app/ui/helper/app_text.dart';
+import 'package:flutter_chat_app/ui/widgets/chat_item.dart';
+import 'package:provider/provider.dart';
 
 class ChatScreen extends StatefulWidget {
   final String? chatId;
+  final String? receiverEmail;
 
   const ChatScreen({
     Key? key,
     this.chatId,
+    this.receiverEmail,
   }) : super(key: key);
 
   @override
@@ -17,15 +26,21 @@ class ChatScreen extends StatefulWidget {
 
 class _MyHomePageState extends State<ChatScreen> {
   final TextEditingController textC = TextEditingController();
-  DateFormat? dt;
-  // final List<Message> _textList = [
-  //   Message(time: "02.01", text: "Hello!", selfSender: false),
-  //   Message(time: "02.02", text: "This is Flutter Chat App", selfSender: false),
-  // ];
+  ScrollController? scrollController;
 
   @override
   void initState() {
     super.initState();
+    print("CHAT ID : ${widget.chatId}");
+    print("EMAIL : ${widget.receiverEmail}");
+    scrollController = ScrollController();
+  }
+
+  @override
+  void dispose() {
+    textC.dispose();
+    scrollController!.dispose();
+    super.dispose();
   }
 
   @override
@@ -33,46 +48,90 @@ class _MyHomePageState extends State<ChatScreen> {
     return Scaffold(
       appBar: AppBar(
         backgroundColor: Colors.blue[800],
-        title: Row(
-          children: [
-            ClipRRect(
-              borderRadius: BorderRadius.circular(40),
-              child: Image.asset(
-                "assets/images/profile.png",
-                height: 36,
-              ),
-            ),
-            const SizedBox(
-              width: 10,
-            ),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  "Username",
-                  style: AppText.mainTextStyle
-                      .copyWith(color: Colors.white, fontSize: 17),
-                ),
-                Text(
-                  "online",
-                  style: AppText.mainTextStyle.copyWith(
-                    color: Colors.white,
-                    fontSize: 13,
-                    fontWeight: FontWeight.w300,
+        title: StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+            stream: Provider.of<ChatProvider>(context)
+                .friendStream(widget.receiverEmail!),
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.active ||
+                  snapshot.connectionState == ConnectionState.done) {
+                Map<String, dynamic> map = snapshot.data!.data()!;
+                Users data = Users.fromJson(map);
+                return Row(
+                  children: [
+                    data.photoUrl == ""
+                        ? ClipRRect(
+                            borderRadius: BorderRadius.circular(40),
+                            child: Image.asset(
+                              "assets/images/profile.png",
+                              fit: BoxFit.cover,
+                              height: 38,
+                            ),
+                          )
+                        : ClipRRect(
+                            borderRadius: BorderRadius.circular(40),
+                            child: Image.network(
+                              data.photoUrl!,
+                              fit: BoxFit.cover,
+                              height: 38,
+                            ),
+                          ),
+                    const SizedBox(
+                      width: 10,
+                    ),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          data.name!,
+                          style: AppText.mainTextStyle
+                              .copyWith(color: Colors.white, fontSize: 17),
+                        ),
+                        Text(
+                          data.status == "" ? "No Status" : data.status!,
+                          style: AppText.mainTextStyle.copyWith(
+                            color: Colors.white,
+                            fontSize: 13,
+                            fontWeight: FontWeight.w300,
+                          ),
+                        )
+                      ],
+                    )
+                  ],
+                );
+              }
+              return Row(
+                children: [
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(40),
+                    child: Image.asset(
+                      "assets/images/profile.png",
+                      height: 36,
+                    ),
                   ),
-                )
-              ],
-            )
-          ],
-        ),
-        actions: [
-          IconButton(
-            onPressed: () {},
-            icon: const Icon(
-              Icons.call,
-            ),
-          ),
-        ],
+                  const SizedBox(
+                    width: 10,
+                  ),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        "Username",
+                        style: AppText.mainTextStyle
+                            .copyWith(color: Colors.white, fontSize: 17),
+                      ),
+                      Text(
+                        "status",
+                        style: AppText.mainTextStyle.copyWith(
+                          color: Colors.white,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w300,
+                        ),
+                      )
+                    ],
+                  )
+                ],
+              );
+            }),
       ),
       body: GestureDetector(
         onTap: () {
@@ -80,78 +139,84 @@ class _MyHomePageState extends State<ChatScreen> {
         },
         child: Column(
           children: [
-            const SizedBox(
-              height: 10,
-            ),
             Expanded(
-              child: ListView.builder(
-                padding: const EdgeInsets.symmetric(horizontal: 6),
-                itemCount: 0,
-                itemBuilder: (context, i) => ConstrainedBox(
-                  constraints: const BoxConstraints(
-                    minHeight: 52,
-                    minWidth: 70,
-                  ),
-                  child: Align(
-                    // alignment: _textList[i].selfSender
-                    //     ? Alignment.centerRight
-                    //     : Alignment.centerLeft,
-                    child: Container(
-                      margin: const EdgeInsetsDirectional.only(bottom: 14),
-                      child: Column(
-                        // crossAxisAlignment: _textList[i].selfSender
-                        //     ? CrossAxisAlignment.end
-                        //     : CrossAxisAlignment.start,
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.all(14),
-                            decoration: BoxDecoration(
-                              color: Colors.white,
-                              // borderRadius: _textList[i].selfSender
-                              //     ? const BorderRadius.only(
-                              //         topRight: Radius.circular(20),
-                              //       )
-                              //     : const BorderRadius.only(
-                              //         topLeft: Radius.circular(
-                              //           20,
-                              //         ),
-                              //       ),
-                              boxShadow: [
-                                BoxShadow(
-                                  offset: const Offset(4, 8),
-                                  blurRadius: 6,
-                                  color: Colors.grey.withOpacity(.12),
-                                )
-                              ],
+              child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+                stream: Provider.of<ChatProvider>(context)
+                    .chatStream(widget.chatId!),
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState == ConnectionState.active) {
+                    var chatData = snapshot.data!.docs;
+
+                    Timer(
+                        Duration.zero,
+                        () => scrollController!.jumpTo(
+                            scrollController!.position.maxScrollExtent));
+                    return ListView.builder(
+                      physics: const BouncingScrollPhysics(),
+                      controller: scrollController,
+                      itemCount: chatData.length,
+                      itemBuilder: (context, i) {
+                        if (i == 0) {
+                          return Column(
+                            children: [
+                              const SizedBox(
+                                height: 6,
+                              ),
+                              Text(
+                                "${chatData[i]["timeGroup"]}",
+                                style: AppText.mainTextStyle
+                                    .copyWith(color: Colors.grey),
+                              ),
+                              ChatItem(
+                                isSender: chatData[i]["sender"] ==
+                                        AppData.authData!.email
+                                    ? true
+                                    : false,
+                                msg: "${chatData[i]["message"]}",
+                                time: "${chatData[i]["time"]}",
+                              ),
+                            ],
+                          );
+                        }
+                        if (chatData[i]["timeGroup"] ==
+                            chatData[i - 1]["timeGroup"]) {
+                          return ChatItem(
+                            isSender:
+                                chatData[i]["sender"] == AppData.authData!.email
+                                    ? true
+                                    : false,
+                            msg: "${chatData[i]["message"]}",
+                            time: "${chatData[i]["time"]}",
+                          );
+                        }
+                        return Column(
+                          children: [
+                            Text(
+                              "${chatData[i]["timeGroup"]}",
+                              style: AppText.mainTextStyle
+                                  .copyWith(color: Colors.grey),
                             ),
-                            // child: Text(
-                            //   _textList[i].text,
-                            //   style:
-                            //       AppText.mainTextStyle.copyWith(fontSize: 15),
-                            // ),
-                          ),
-                          const SizedBox(
-                            height: 8,
-                          ),
-                          // Text(
-                          //   _textList[i].time,
-                          //   style: AppText.mainTextStyle.copyWith(
-                          //     color: Colors.grey,
-                          //     fontSize: 13,
-                          //     fontWeight: FontWeight.w300,
-                          //   ),
-                          // )
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
+                            ChatItem(
+                              isSender: chatData[i]["sender"] ==
+                                      AppData.authData!.email
+                                  ? true
+                                  : false,
+                              msg: "${chatData[i]["message"]}",
+                              time: "${chatData[i]["time"]}",
+                            ),
+                          ],
+                        );
+                      },
+                    );
+                  }
+                  return const SizedBox();
+                },
               ),
             ),
             Container(
               margin: const EdgeInsets.only(bottom: 10),
               width: double.infinity,
-              padding: const EdgeInsets.symmetric(horizontal: 12),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
@@ -199,21 +264,14 @@ class _MyHomePageState extends State<ChatScreen> {
                   const Spacer(),
                   InkWell(
                     onTap: () {
-                      if (textC.text == "") {
-                        return;
-                      }
-                      setState(() {
-                        var date = DateFormat("hh:mm").format(DateTime.now());
-
-                        // _textList.add(
-                        //   Message(
-                        //     time: date,
-                        //     text: textC.text,
-                        //     selfSender: true,
-                        //   ),
-                        // );
-                        // textC.clear();
-                      });
+                      Provider.of<ChatProvider>(context, listen: false).newChat(
+                        widget.chatId!,
+                        textC.text,
+                        widget.receiverEmail!,
+                        chatAdded: () => scrollController!
+                            .jumpTo(scrollController!.position.maxScrollExtent),
+                      );
+                      textC.clear();
                     },
                     child: Container(
                       height: MediaQuery.of(context).size.height / 16,
@@ -228,7 +286,7 @@ class _MyHomePageState extends State<ChatScreen> {
                         size: 20,
                       ),
                     ),
-                  )
+                  ),
                 ],
               ),
             ),

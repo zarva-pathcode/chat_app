@@ -30,18 +30,19 @@ class Users {
   List<ChatUser>? chatUser;
 
   factory Users.fromJson(Map<String, dynamic> json) => Users(
-      uid: json["uid"],
-      name: json["name"],
-      keyName: json["keyName"],
-      email: json["email"],
-      creationTime: json["creationTime"],
-      lastSignInTime: json["lastSignInTime"],
-      photoUrl: json["photoUrl"],
-      status: json["status"],
-      updatedTime: json["updatedTime"],
-      chatUser: List<ChatUser>.from(
-        json["chatUser"].map((x) => ChatUser.fromJson(x)),
-      ));
+        uid: json["uid"],
+        name: json["name"],
+        keyName: json["keyName"],
+        email: json["email"],
+        creationTime: json["creationTime"],
+        lastSignInTime: json["lastSignInTime"],
+        photoUrl: json["photoUrl"],
+        status: json["status"],
+        updatedTime: json["updatedTime"],
+        // chatUser: List<ChatUser>.from(
+        //   json["chatUser"].map((x) => ChatUser.fromJson(x)),
+        // ),
+      );
 
   Map<String, dynamic> toJson() => {
         "uid": uid,
@@ -53,7 +54,7 @@ class Users {
         "photoUrl": photoUrl,
         "status": status,
         "updatedTime": updatedTime,
-        "chats": List<ChatUser>.from(chatUser!.map((x) => x.toJson())),
+        // "chats": List<ChatUser>.from(chatUser!.map((x) => x.toJson())),
       };
 }
 

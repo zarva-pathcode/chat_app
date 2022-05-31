@@ -5,7 +5,6 @@ import 'package:flutter_chat_app/ui/screen/change_profile_screen.dart';
 import 'package:flutter_chat_app/ui/screen/sign_in_screen.dart';
 import 'package:flutter_chat_app/ui/widgets/state_dialog.dart';
 import 'package:flutter_chat_app/ui/widgets/profile_list_tile.dart';
-import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:provider/provider.dart';
 
 class ProfileScreen extends StatelessWidget {
@@ -24,7 +23,7 @@ class ProfileScreen extends StatelessWidget {
         backgroundColor: Colors.blue[800],
       ),
       body: Consumer<AuthProvider>(builder: (context, data, ch) {
-        if (data.loadingState == LoadingState.isWaiting) {
+        if (data.stateInfo == StateInfo.isLoading) {
           return const Center(
             child: CircularProgressIndicator(),
           );
@@ -76,67 +75,92 @@ class ProfileScreen extends StatelessWidget {
               height: 30,
             ),
             ProfileListTile(
-              onTap: () {},
-              label: "Update Status",
-              icon: FontAwesomeIcons.file,
-            ),
-            ProfileListTile(
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => ChangeProfileScreen(
-                      usersM: data.usersM,
-                    ),
+              onTap: () => Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => ChangeProfileScreen(
+                    usersM: data.usersM,
                   ),
-                );
-              },
+                ),
+              ),
               label: "Change Profile",
               icon: Icons.person_outlined,
-            ),
-            const ProfileListTile(
-              label: "Change Theme",
-              icon: FontAwesomeIcons.palette,
             ),
             const Spacer(),
             ProfileListTile(
               isLogout: true,
               onTap: () {
-                Provider.of<AuthProvider>(context, listen: false).logout(
-                    onSuccess: (authState) {
-                  if (authState == AuthState.unauthenticating) {
-                    showDialog(
-                      context: context,
-                      builder: (context) => const StateDialog(
-                        text: "Logging out.. please wait",
-                      ),
-                    );
-                  } else if (authState == AuthState.unauthenticated) {
-                    Navigator.pop(context);
-                    showDialog(
-                      context: context,
-                      builder: (context) => const StateDialog(
-                        isLoading: false,
-                        text: "Logout Successfuly",
-                        icon: Icon(
-                          Icons.check_circle,
-                          size: 50,
-                          color: Colors.green,
+                showDialog(
+                  barrierDismissible: false,
+                  context: context,
+                  builder: (BuildContext aDialog) => AlertDialog(
+                    title: Text(
+                      "Warning!",
+                      style: AppText.mainTextStyle,
+                    ),
+                    content: Text(
+                      "are you sure want to logout?",
+                      style: AppText.mainTextStyle,
+                    ),
+                    actions: [
+                      TextButton(
+                        onPressed: () => Navigator.pop(context),
+                        child: Text(
+                          "cancel",
+                          style:
+                              AppText.mainTextStyle.copyWith(color: Colors.red),
                         ),
                       ),
-                    );
-                    Future.delayed(
-                      const Duration(seconds: 2),
-                    ).then(
-                      (_) => Navigator.pushReplacement(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => const SignInScreen(),
+                      TextButton(
+                        onPressed: () {
+                          Navigator.pop(context);
+                          Provider.of<AuthProvider>(context, listen: false)
+                              .logout(
+                            onSuccess: (authState) {
+                              if (authState == AuthState.unauthenticating) {
+                                showDialog(
+                                  context: context,
+                                  builder: (context) => const StateDialog(
+                                    text: "Logging out.. please wait",
+                                  ),
+                                );
+                              } else if (authState ==
+                                  AuthState.unauthenticated) {
+                                Navigator.pop(context);
+                                showDialog(
+                                  context: context,
+                                  builder: (context) => const StateDialog(
+                                    isLoading: false,
+                                    text: "Logout Successfuly",
+                                    icon: Icon(
+                                      Icons.check_circle,
+                                      size: 50,
+                                      color: Colors.green,
+                                    ),
+                                  ),
+                                );
+                                Future.delayed(
+                                  const Duration(seconds: 2),
+                                ).then((_) => Navigator.pushAndRemoveUntil(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (context) =>
+                                          const SignInScreen(),
+                                    ),
+                                    (route) => false));
+                              }
+                            },
+                          );
+                        },
+                        child: Text(
+                          "sure",
+                          style: AppText.mainTextStyle
+                              .copyWith(color: Colors.blue),
                         ),
-                      ),
-                    );
-                  }
-                });
+                      )
+                    ],
+                  ),
+                );
               },
             ),
             const SizedBox(

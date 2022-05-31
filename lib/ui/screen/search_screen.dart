@@ -84,78 +84,102 @@ class _SearchScreenState extends State<SearchScreen> {
               ],
             ),
           ),
-          Consumer<SearchProvider>(builder: (context, data, ch) {
-            return data.searchList.isEmpty
-                ? Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      crossAxisAlignment: CrossAxisAlignment.center,
-                      children: [
-                        const SizedBox(
-                          height: 200,
-                        ),
-                        FaIcon(
-                          FontAwesomeIcons.search,
-                          color: Colors.grey[300],
-                          size: 70,
-                        ),
-                        Text(
-                          "Search Friends",
-                          style: AppText.mainTextStyle
-                              .copyWith(color: Colors.grey),
-                        ),
-                      ],
-                    ),
-                  )
-                : data.isLoading == true
-                    ? const Center(
-                        child: CircularProgressIndicator(),
-                      )
-                    : data.friendsList.isEmpty
-                        ? Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            crossAxisAlignment: CrossAxisAlignment.center,
-                            children: [
-                              const SizedBox(
-                                height: 200,
-                              ),
-                              FaIcon(
-                                FontAwesomeIcons.exclamation,
-                                color: Colors.grey[300],
-                                size: 70,
-                              ),
-                              Text(
-                                "Tidak ditemukan",
-                                style: AppText.mainTextStyle
-                                    .copyWith(color: Colors.grey),
-                              ),
-                            ],
-                          )
-                        : Expanded(
-                            child: ListView.builder(
-                              itemCount: data.friendsList.length,
-                              itemBuilder: (context, i) {
-                                var friend = data.friendsList[i];
-                                return SearchTile(
-                                  image: friend["photoUrl"],
-                                  userName: friend["name"],
-                                  userEmail: friend["email"],
-                                  onTap: () {
-                                    print("user Tapped");
-                                    Provider.of<AuthProvider>(context,
-                                            listen: false)
-                                        .addNewConnection(
-                                      friend["email"],
-                                      onSuccess: (chatId) {
-                                        print("This is the chat id : $chatId");
-                                      },
-                                    );
-                                  },
-                                );
-                              },
-                            ),
+          Consumer<SearchProvider>(
+            builder: (context, data, ch) {
+              if (data.searchList.isEmpty) {
+                return Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      const SizedBox(
+                        height: 200,
+                      ),
+                      FaIcon(
+                        FontAwesomeIcons.search,
+                        color: Colors.grey[300],
+                        size: 70,
+                      ),
+                      Text(
+                        "Search Friends",
+                        style:
+                            AppText.mainTextStyle.copyWith(color: Colors.grey),
+                      ),
+                    ],
+                  ),
+                );
+              } else {
+                if (data.isLoading == true) {
+                  return const Center(
+                    child: CircularProgressIndicator(),
+                  );
+                }
+                if (data.friendsList.isEmpty) {
+                  return Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      const SizedBox(
+                        height: 200,
+                      ),
+                      FaIcon(
+                        FontAwesomeIcons.exclamation,
+                        color: Colors.grey[300],
+                        size: 70,
+                      ),
+                      Text(
+                        "Tidak ditemukan",
+                        style:
+                            AppText.mainTextStyle.copyWith(color: Colors.grey),
+                      ),
+                    ],
+                  );
+                }
+                return Expanded(
+                  child: ListView.builder(
+                    itemCount: data.friendsList.length,
+                    itemBuilder: (context, i) {
+                      var friend = data.friendsList[i];
+                      return SearchTile(
+                        image: friend["photoUrl"],
+                        userName: friend["name"],
+                        userEmail: friend["email"],
+                        onTap: () {
+                          print("user Tapped");
+                          Provider.of<AuthProvider>(context, listen: false)
+                              .addNewConnection(
+                            friend["email"],
+                            onSuccess: (chatId) {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => ChatScreen(
+                                    chatId: chatId,
+                                    receiverEmail: friend["email"],
+                                  ),
+                                ),
+                              );
+                            },
                           );
-          }),
+                        },
+                      );
+                    },
+                  ),
+                );
+              }
+
+              // return data.searchList.isEmpty
+
+              //     ?
+              //     : data.isLoading == true
+              //         ? const Center(
+              //             child: CircularProgressIndicator(),
+              //           )
+              //         :
+              //             ?
+              //             :
+            },
+          ),
         ],
       ),
     );

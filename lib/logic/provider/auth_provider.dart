@@ -1,13 +1,18 @@
+import 'dart:io';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_chat_app/logic/data/app_data.dart';
 import 'package:flutter_chat_app/logic/data/model/users.dart';
 import 'package:flutter_chat_app/ui/helper/collection_ref.dart';
+import 'package:flutter_native_image/flutter_native_image.dart';
 import 'package:google_sign_in/google_sign_in.dart';
+import 'package:image_picker/image_picker.dart';
 
-enum LoadingState {
-  isWaiting,
+enum StateInfo {
+  isLoading,
   isDone,
 }
 
@@ -19,23 +24,26 @@ enum AuthState {
 }
 
 class AuthProvider extends ChangeNotifier {
-  final GoogleSignIn _googleSignIn = GoogleSignIn();
-  LoadingState loadingState = LoadingState.isDone;
-  AuthState authState = AuthState.unauthenticated;
   FirebaseFirestore firestore = FirebaseFirestore.instance;
-  GoogleSignInAccount? _currentUser;
-  GoogleSignInAuthentication? _authUser;
-  UserCredential? userCredential;
   String? dateNow = DateTime.now().toIso8601String();
+  FirebaseStorage storage = FirebaseStorage.instance;
+  final GoogleSignIn _googleSignIn = GoogleSignIn();
+  AuthState authState = AuthState.unauthenticated;
+  final ImagePicker _imagePicker = ImagePicker();
+  StateInfo stateInfo = StateInfo.isDone;
+  GoogleSignInAuthentication? _authUser;
+  GoogleSignInAccount? _currentUser;
+  UserCredential? userCredential;
   Users? usersM = Users();
+  XFile? pickedImage;
 
   Future<void> loginWithGoogle({
-    Function(AuthState)? stateInfo,
+    Function(AuthState)? state,
     Function(String)? onError,
   }) async {
     try {
       authState = AuthState.authenticating;
-      stateInfo!(authState);
+      state!(authState);
       notifyListeners();
       debugPrint("=> SIGN OUT");
       await _googleSignIn.signOut();
@@ -71,7 +79,7 @@ class AuthProvider extends ChangeNotifier {
           status: data["status"],
         );
         authState = AuthState.authenticated;
-        stateInfo(authState);
+        state(authState);
         notifyListeners();
       } else {
         users.doc(_currentUser!.email).set({
@@ -85,9 +93,10 @@ class AuthProvider extends ChangeNotifier {
           "creationTime":
               userCredential!.user!.metadata.creationTime!.toIso8601String(),
           "lastSignInTime": dateNow,
-          "updatedTime": "",
-          "chatUser": [],
+          "updatedTime": dateNow,
         });
+
+        users.doc(_currentUser!.email).collection("chatUser");
 
         AppData.setUserPreferences(
           email: userCredential!.user!.email,
@@ -97,11 +106,11 @@ class AuthProvider extends ChangeNotifier {
         );
 
         authState = AuthState.unauthenticated;
-        stateInfo(authState);
+        state(authState);
         notifyListeners();
       }
     } catch (e) {
-      loadingState = LoadingState.isDone;
+      stateInfo = StateInfo.isDone;
       debugPrint(e.toString());
       // onError!(e.toString());
     }
@@ -112,22 +121,11 @@ class AuthProvider extends ChangeNotifier {
     CollectionReference users = firestore.collection('users');
     final currentUser = await users.doc(AppData.authData!.email).get();
     final currentUserData = currentUser.data() as Map<String, dynamic>;
-
-    usersM = Users(
-      uid: currentUserData["uid"] ?? "",
-      name: currentUserData["name"] ?? "",
-      keyName: currentUserData["keyName"] ?? "",
-      email: currentUserData["email"] ?? "",
-      photoUrl: currentUserData["photoUrl"] ?? "",
-      status: currentUserData["status"] ?? "",
-      creationTime: currentUserData["creationTime"] ?? "",
-      lastSignInTime: currentUserData["lastSignInTime"] ?? "",
-      updatedTime: currentUserData["updatedTime"] ?? "",
-      // chats: currentUserData["chats"],
-    );
+    print("UserData : $currentUserData");
+    usersM = Users.fromJson(currentUserData);
 
     final chatsList =
-        await users.doc(AppData.authData!.email).collection("chats").get();
+        await users.doc(AppData.authData!.email).collection("chatUser").get();
 
     if (chatsList.docs.isNotEmpty) {
       List<ChatUser> chatListData = [];
@@ -157,10 +155,21 @@ class AuthProvider extends ChangeNotifier {
       authState = AuthState.unauthenticating;
       onSuccess!(authState);
       notifyListeners();
+      await _googleSignIn.disconnect().then((_) {
+        print("Disconnected");
+      }).catchError((error) {
+        print("Some error is coming when disconnect");
+        onError!(error);
+      });
+      await _googleSignIn.signOut().then((_) {
+        print("Signout Success");
+      }).catchError((error) {
+        print("Some error is coming when signOut");
+        onError!(error);
+      });
+
       AppData.removePrefs();
       Future.delayed(const Duration(seconds: 2)).then((_) async {
-        await _googleSignIn.disconnect();
-        await _googleSignIn.signOut();
         print("logout");
         authState = AuthState.unauthenticated;
         onSuccess(authState);
@@ -175,35 +184,34 @@ class AuthProvider extends ChangeNotifier {
   }
 
   changeProfile(String name, String status,
-      {Function()? onSuccess, Function()? onError}) async {
+      {Function(StateInfo)? state, Function()? onError}) async {
     try {
-      loadingState = LoadingState.isWaiting;
+      stateInfo = StateInfo.isLoading;
       notifyListeners();
       CollectionReference users = firestore.collection(CollectionName.users);
 
-      users.doc(_currentUser!.email).update({
+      users.doc(AppData.authData!.email).update({
         "name": name,
         "keyName": name.substring(0, 1).toUpperCase(),
         "status": status,
         "updatedTime": dateNow,
       });
-      print("User Cred email : ${userCredential!.user!.email}");
 
       usersM!.name = name;
       usersM!.status = status;
       usersM!.updatedTime = dateNow;
 
       AppData.setUserPreferences(
-        email: userCredential!.user!.email,
+        email: AppData.authData!.email,
         name: name,
-        photoUrl: userCredential!.user!.photoURL,
+        photoUrl: AppData.authData!.photoUrl,
         status: status,
       );
 
-      loadingState = LoadingState.isDone;
-      onSuccess!();
+      stateInfo = StateInfo.isDone;
+      state!(stateInfo);
     } catch (e) {
-      loadingState = LoadingState.isDone;
+      stateInfo = StateInfo.isDone;
       onError!();
       debugPrint(e.toString());
     }
@@ -216,22 +224,26 @@ class AuthProvider extends ChangeNotifier {
     CollectionReference chats = firestore.collection("chats");
     CollectionReference users = firestore.collection("users");
 
-    final usersDoc = await users.doc(AppData.authData!.email).get();
-    final userChatDoc =
-        (usersDoc.data() as Map<String, dynamic>)["chatUser"] as List;
+    final usersChatDoc =
+        await users.doc(AppData.authData!.email).collection("chatUser").get();
 
-    if (userChatDoc.isNotEmpty) {
+    if (usersChatDoc.docs.isNotEmpty) {
       //? user mempunyai koneksi dengan user lain
-      for (var element in userChatDoc) {
-        //? memeriksa element koneksi yang sama dengan email user lain
-        if (element["connection"] == friendEmail) {
-          chatId = element["chat_id"];
-        }
-      }
 
-      if (chatId != "") {
+      //? cari data, apakah user sekarang punya koneksi dengan friendEmail
+      final checkConnection = await users
+          .doc(AppData.authData!.email)
+          .collection("chatUser")
+          .where(
+            "connection",
+            isEqualTo: friendEmail,
+          )
+          .get();
+
+      if (checkConnection.docs.isNotEmpty) {
         //? user sudah memiliki koneksi dengan friend email
         flagNewConnection = false;
+        chatId = checkConnection.docs[0].id;
       } else {
         //? user belum memiliki koneksi dengan friend email
         flagNewConnection = true;
@@ -241,7 +253,8 @@ class AuthProvider extends ChangeNotifier {
       flagNewConnection = true;
     }
 
-    if (flagNewConnection == true) {
+    if (flagNewConnection) {
+      //? cek data di chats collection, apakah ada yang memiliki koneksi satu sama lain
       final chatsDocs = await chats.where(
         "connections",
         whereIn: [
@@ -262,18 +275,17 @@ class AuthProvider extends ChangeNotifier {
         final chatData = chatsDocs.docs[0].data() as Map<String, dynamic>;
 
         chatId = chatDataId;
-        userChatDoc.add({
+
+        await users
+            .doc(AppData.authData!.email)
+            .collection("chatUser")
+            .doc(chatDataId)
+            .set({
           "connection": friendEmail,
           "chat_id": chatId,
           "lastTime": chatData["lastTime"],
           "total_unread": 0,
         });
-
-        await users
-            .doc(AppData.authData!.email)
-            .update({"chatUser": userChatDoc});
-
-        usersM!.chatUser = userChatDoc as List<ChatUser>;
       } else {
         //? buat koneksi baru berdua
         final newChatsDoc = await chats.add({
@@ -281,56 +293,96 @@ class AuthProvider extends ChangeNotifier {
             AppData.authData!.email,
             friendEmail,
           ],
-          "chat": [],
         });
 
         chatId = newChatsDoc.id;
 
-        userChatDoc.add({
+        chats.doc(chatId).collection("chat");
+
+        await users
+            .doc(AppData.authData!.email)
+            .collection("chatUser")
+            .doc(chatId)
+            .set({
           "connection": friendEmail,
           "chat_id": chatId,
           "lastTime": dateNow,
           "total_unread": 0,
         });
-
-        await users
-            .doc(AppData.authData!.email)
-            .update({"chatUser": userChatDoc});
-
-        usersM!.chatUser = userChatDoc as List<ChatUser>;
       }
-
-      // if (chatsDocs.docs.isNotEmpty) {
-      //   print("Ada Id Berdua");
-      //   final chatsDataId = chatsDocs.docs[0].id;
-      //   final chatsData = chatsDocs.docs[0].data() as Map<String, dynamic>;
-
-      //   await users.doc(_currentUser!.email).update({
-      //     "chats": [
-      //       {
-      //         "connection": friendEmail,
-      //         "chat_id": chatsDataId,
-      //         "lastTime": chatsData["lastTime"],
-      //       }
-      //     ]
-      //   });
-      //   usersM!.chats = [
-      //     ChatUser(
-      //       connection: friendEmail,
-      //       chatId: chatsDataId,
-      //       lastTime: chatsData["lastTime"],
-      //       totalUnread: 0,
-      //     )
-      //   ];
-      //   chatId = chatsDataId;
-      //   notifyListeners();
-      // } else {
-      //   print("buat chat id baru");
-      // }
     }
+
+    final readChatUpdate = await chats
+        .doc(chatId)
+        .collection("chat")
+        .where("isRead", isEqualTo: false)
+        .where("receiver", isEqualTo: AppData.authData!.email)
+        .get();
+
+    readChatUpdate.docs.forEach((element) async {
+      element.id;
+      await chats.doc(chatId).collection("chat").doc(element.id).update({
+        "isRead": true,
+      });
+    });
+
+    await users
+        .doc(AppData.authData!.email)
+        .collection("chatUser")
+        .doc(chatId)
+        .update({
+      "total_unread": 0,
+    });
 
     onSuccess!(chatId);
 
+    notifyListeners();
+  }
+
+  void selectImage() async {
+    final image = await _imagePicker.pickImage(source: ImageSource.gallery);
+
+    if (image == null) {
+      return;
+    }
+    pickedImage = image;
+    notifyListeners();
+  }
+
+  void resetImage() {
+    pickedImage = null;
+    notifyListeners();
+  }
+
+  Future uploadImage(String uid, {Function()? onSuccess}) async {
+    Reference storageRef = storage.ref("$uid.png");
+    File file =
+        await FlutterNativeImage.compressImage(pickedImage!.path, quality: 50);
+    try {
+      await storageRef.putFile(file);
+      final photoUrl = await storageRef.getDownloadURL();
+      resetImage();
+      CollectionReference users = firestore.collection('users');
+      if (photoUrl != "") {
+        await users.doc(AppData.authData!.email).update({
+          "photoUrl": photoUrl,
+          "updatedTime": dateNow,
+        });
+
+        usersM!.photoUrl = photoUrl;
+        usersM!.updatedTime = dateNow;
+
+        AppData.setUserPreferences(
+          email: AppData.authData!.email,
+          name: AppData.authData!.name,
+          photoUrl: photoUrl,
+          status: AppData.authData!.status,
+        );
+      }
+      onSuccess!();
+    } catch (e) {
+      debugPrint(e.toString());
+    }
     notifyListeners();
   }
 }
