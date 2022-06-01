@@ -23,11 +23,6 @@ class ProfileScreen extends StatelessWidget {
         backgroundColor: Colors.blue[800],
       ),
       body: Consumer<AuthProvider>(builder: (context, data, ch) {
-        if (data.stateInfo == StateInfo.isLoading) {
-          return const Center(
-            child: CircularProgressIndicator(),
-          );
-        }
         return Column(
           children: [
             const SizedBox(

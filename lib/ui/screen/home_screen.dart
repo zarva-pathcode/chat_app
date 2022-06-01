@@ -1,7 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_chat_app/logic/data/app_data.dart';
-import 'package:flutter_chat_app/logic/provider/auth_provider.dart';
 import 'package:flutter_chat_app/logic/provider/chat_provider.dart';
 import 'package:flutter_chat_app/ui/helper/app_text.dart';
 import 'package:flutter_chat_app/ui/helper/const_color.dart';
@@ -23,11 +22,6 @@ class _UserListScreenState extends State<HomeScreen> {
   @override
   void initState() {
     super.initState();
-    getData();
-  }
-
-  getData() async {
-    await Provider.of<AuthProvider>(context, listen: false).getProfile();
   }
 
   @override

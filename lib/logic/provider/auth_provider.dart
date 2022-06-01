@@ -6,7 +6,6 @@ import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_chat_app/logic/data/app_data.dart';
 import 'package:flutter_chat_app/logic/data/model/users.dart';
-import 'package:flutter_chat_app/ui/helper/collection_ref.dart';
 import 'package:flutter_native_image/flutter_native_image.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:image_picker/image_picker.dart';
@@ -62,7 +61,7 @@ class AuthProvider extends ChangeNotifier {
           await FirebaseAuth.instance.signInWithCredential(credential);
 
       debugPrint("=> SET DATA TO FIRESTORE");
-      CollectionReference users = firestore.collection(CollectionName.users);
+      CollectionReference users = firestore.collection("users");
 
       var checkUser = await users.doc(_currentUser!.email).get();
 
@@ -78,8 +77,13 @@ class AuthProvider extends ChangeNotifier {
           photoUrl: userCredential!.user!.photoURL ?? "",
           status: data["status"],
         );
+
+        getProfile();
+
         authState = AuthState.authenticated;
+
         state(authState);
+
         notifyListeners();
       } else {
         users.doc(_currentUser!.email).set({
@@ -105,8 +109,12 @@ class AuthProvider extends ChangeNotifier {
           status: "",
         );
 
+        getProfile();
+
         authState = AuthState.unauthenticated;
+
         state(authState);
+
         notifyListeners();
       }
     } catch (e) {
@@ -121,7 +129,7 @@ class AuthProvider extends ChangeNotifier {
     CollectionReference users = firestore.collection('users');
     final currentUser = await users.doc(AppData.authData!.email).get();
     final currentUserData = currentUser.data() as Map<String, dynamic>;
-    print("UserData : $currentUserData");
+
     usersM = Users.fromJson(currentUserData);
 
     final chatsList =
@@ -188,7 +196,7 @@ class AuthProvider extends ChangeNotifier {
     try {
       stateInfo = StateInfo.isLoading;
       notifyListeners();
-      CollectionReference users = firestore.collection(CollectionName.users);
+      CollectionReference users = firestore.collection("users");
 
       users.doc(AppData.authData!.email).update({
         "name": name,
